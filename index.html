@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スクリーンショット＆トリミングツール</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            flex: 1;
+        }
+
+        /* ヘッダー */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        /* 初期画面 */
+        .initial-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .action-button {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 30px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .action-button:hover {
+            border-color: #4CAF50;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .action-button.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            display: none;
+        }
+
+        .action-button .icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        .action-button .label {
+            font-size: 1rem;
+            color: #333;
+            font-weight: 500;
+        }
+
+        /* トリミング画面 */
+        .cropping-screen {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #000;
+            z-index: 1000;
+        }
+
+        .cropping-container {
+            height: calc(100% - 100px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .cropping-image {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .cropping-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .aspect-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .aspect-button {
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .aspect-button:hover {
+            background: #444;
+        }
+
+        .aspect-button.active {
+            background: #4CAF50;
+            border-color: #4CAF50;
+        }
+
+        .control-button {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .control-button.primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .control-button.primary:hover {
+            background: #45a049;
+        }
+
+        .control-button.secondary {
+            background: #666;
+            color: white;
+        }
+
+        .control-button.secondary:hover {
+            background: #555;
+        }
+
+        /* エクスポート画面 */
+        .export-screen {
+            display: none;
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .preview-container {
+            margin-bottom: 30px;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: inline-block;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 500px;
+            border-radius: 8px;
+        }
+
+        .export-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .export-button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .export-button.download {
+            background: #2196F3;
+            color: white;
+        }
+
+        .export-button.download:hover {
+            background: #1976D2;
+        }
+
+        .export-button.clipboard {
+            background: #FF9800;
+            color: white;
+        }
+
+        .export-button.clipboard:hover {
+            background: #F57C00;
+        }
+
+        .export-button.reset {
+            background: #666;
+            color: white;
+        }
+
+        .export-button.reset:hover {
+            background: #555;
+        }
+
+        /* ローディング */
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* トースト通知 */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 3000;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        /* ファイル入力 */
+        .file-input {
+            display: none;
+        }
+
+        /* レスポンシブ */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .action-buttons {
+                grid-template-columns: 1fr;
+            }
+
+            .cropping-controls {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .aspect-buttons {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>スクリーンショット＆トリミングツール</h1>
+            <p>画像をキャプチャして、お好みのサイズにトリミングできます</p>
+        </div>
+
+        <!-- 初期画面 -->
+        <div class="initial-screen" id="initialScreen">
+            <div class="action-buttons">
+                <div class="action-button" id="screenshotBtn">
+                    <div class="icon">📸</div>
+                    <div class="label">スクリーンショットを撮る</div>
+                </div>
+
+                <div class="action-button" id="uploadBtn">
+                    <div class="icon">📁</div>
+                    <div class="label">ファイルをアップロード</div>
+                </div>
+
+                <div class="action-button" id="pasteBtn">
+                    <div class="icon">📋</div>
+                    <div class="label">クリップボードから貼り付け</div>
+                </div>
+
+                <div class="action-button" id="cameraBtn">
+                    <div class="icon">📷</div>
+                    <div class="label">カメラで撮影</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- トリミング画面 -->
+        <div class="cropping-screen" id="croppingScreen">
+            <div class="cropping-container">
+                <img class="cropping-image" id="croppingImage">
+            </div>
+            <div class="cropping-controls">
+                <div class="aspect-buttons">
+                    <button class="aspect-button" data-ratio="1.7777">16:9</button>
+                    <button class="aspect-button" data-ratio="1.3333">4:3</button>
+                    <button class="aspect-button" data-ratio="1">1:1</button>
+                    <button class="aspect-button active" data-ratio="NaN">自由</button>
+                </div>
+                <div>
+                    <button class="control-button primary" id="cropConfirmBtn">決定</button>
+                    <button class="control-button secondary" id="cropCancelBtn">キャンセル</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- エクスポート画面 -->
+        <div class="export-screen" id="exportScreen">
+            <div class="preview-container">
+                <img class="preview-image" id="previewImage">
+            </div>
+            <div class="export-actions">
+                <button class="export-button download" id="downloadBtn">
+                    <span>💾</span>
+                    <span>画像としてダウンロード</span>
+                </button>
+                <button class="export-button clipboard" id="clipboardBtn">
+                    <span>📋</span>
+                    <span>クリップボードにコピー</span>
+                </button>
+                <button class="export-button reset" id="resetBtn">
+                    <span>🔄</span>
+                    <span>新しい画像を読み込む</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ローディング -->
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- トースト -->
+    <div class="toast" id="toast"></div>
+
+    <!-- ファイル入力 -->
+    <input type="file" accept="image/*" class="file-input" id="fileInput">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    <script>
+        // アプリケーションの状態管理
+        const App = {
+            state: 'initial',
+            currentImage: null,
+            cropper: null,
+            croppedCanvas: null,
+
+            // 初期化
+            init() {
+                this.setupEventListeners();
+                this.checkFeatureSupport();
+            },
+
+            // 機能サポートチェック
+            checkFeatureSupport() {
+                // スクリーンショット機能（デスクトップのみ）
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                if (isMobile || !navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                    document.getElementById('screenshotBtn').classList.add('disabled');
+                }
+
+                // カメラ機能
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    document.getElementById('cameraBtn').classList.add('disabled');
+                }
+
+                // クリップボード機能
+                if (!navigator.clipboard || !navigator.clipboard.write) {
+                    // クリップボードからの貼り付けは別の方法でも可能なので無効化しない
+                }
+            },
+
+            // イベントリスナーの設定
+            setupEventListeners() {
+                // スクリーンショットボタン
+                document.getElementById('screenshotBtn').addEventListener('click', () => this.captureScreen());
+
+                // ファイルアップロードボタン
+                document.getElementById('uploadBtn').addEventListener('click', () => {
+                    document.getElementById('fileInput').click();
+                });
+
+                // ファイル選択時
+                document.getElementById('fileInput').addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        this.handleFileUpload(e.target.files[0]);
+                    }
+                });
+
+                // クリップボードからの貼り付け
+                document.getElementById('pasteBtn').addEventListener('click', async () => {
+                    try {
+                        const clipboardItems = await navigator.clipboard.read();
+                        for (const item of clipboardItems) {
+                            for (const type of item.types) {
+                                if (type.startsWith('image/')) {
+                                    const blob = await item.getType(type);
+                                    this.handleImageBlob(blob);
+                                    return;
+                                }
+                            }
+                        }
+                        this.showToast('クリップボードに画像がありません');
+                    } catch (err) {
+                        this.showToast('クリップボードへのアクセスが拒否されました');
+                    }
+                });
+
+                // ペーストイベント（Ctrl+V）
+                document.addEventListener('paste', (e) => {
+                    if (this.state !== 'initial') return;
+
+                    const items = e.clipboardData.items;
+                    for (let item of items) {
+                        if (item.type.startsWith('image/')) {
+                            const blob = item.getAsFile();
+                            this.handleImageBlob(blob);
+                            break;
+                        }
+                    }
+                });
+
+                // カメラボタン
+                document.getElementById('cameraBtn').addEventListener('click', () => this.captureCamera());
+
+                // トリミング画面のボタン
+                document.getElementById('cropConfirmBtn').addEventListener('click', () => this.confirmCrop());
+                document.getElementById('cropCancelBtn').addEventListener('click', () => this.cancelCrop());
+
+                // アスペクト比ボタン
+                document.querySelectorAll('.aspect-button').forEach(btn => {
+                    btn.addEventListener('click', (e) => this.changeAspectRatio(e.target));
+                });
+
+                // エクスポート画面のボタン
+                document.getElementById('downloadBtn').addEventListener('click', () => this.downloadImage());
+                document.getElementById('clipboardBtn').addEventListener('click', () => this.copyToClipboard());
+                document.getElementById('resetBtn').addEventListener('click', () => this.reset());
+            },
+
+            // 画面遷移
+            changeState(newState) {
+                this.state = newState;
+
+                // 全画面を非表示
+                document.getElementById('initialScreen').style.display = 'none';
+                document.getElementById('croppingScreen').style.display = 'none';
+                document.getElementById('exportScreen').style.display = 'none';
+
+                // 対象の画面を表示
+                switch (newState) {
+                    case 'initial':
+                        document.getElementById('initialScreen').style.display = 'flex';
+                        break;
+                    case 'cropping':
+                        document.getElementById('croppingScreen').style.display = 'block';
+                        break;
+                    case 'export':
+                        document.getElementById('exportScreen').style.display = 'block';
+                        break;
+                }
+            },
+
+            // ローディング表示
+            showLoading() {
+                document.getElementById('loading').style.display = 'flex';
+            },
+
+            hideLoading() {
+                document.getElementById('loading').style.display = 'none';
+            },
+
+            // トースト通知
+            showToast(message) {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.classList.add('show');
+
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            },
+
+            // スクリーンキャプチャ
+            async captureScreen() {
+                try {
+                    this.showLoading();
+
+                    const stream = await navigator.mediaDevices.getDisplayMedia({
+                        video: true,
+                        audio: false
+                    });
+
+                    const video = document.createElement('video');
+                    video.srcObject = stream;
+                    video.play();
+
+                    video.onloadedmetadata = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        const ctx = canvas.getContext('2d');
+
+                        // 少し待ってから撮影
+                        setTimeout(() => {
+                            ctx.drawImage(video, 0, 0);
+                            stream.getTracks().forEach(track => track.stop());
+
+                            canvas.toBlob((blob) => {
+                                this.hideLoading();
+                                this.handleImageBlob(blob);
+                            });
+                        }, 100);
+                    };
+                } catch (err) {
+                    this.hideLoading();
+                    if (err.name === 'NotAllowedError') {
+                        this.showToast('スクリーンキャプチャが拒否されました');
+                    } else {
+                        this.showToast('スクリーンキャプチャに失敗しました');
+                    }
+                }
+            },
+
+            // カメラキャプチャ
+            async captureCamera() {
+                try {
+                    this.showLoading();
+
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: 'environment' }
+                    });
+
+                    const video = document.createElement('video');
+                    video.srcObject = stream;
+                    video.play();
+
+                    // カメラプレビューを表示（簡易版）
+                    const captureBtn = document.createElement('button');
+                    captureBtn.textContent = '撮影';
+                    captureBtn.style.cssText = 'position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 1001; padding: 15px 30px; font-size: 18px; background: #4CAF50; color: white; border: none; border-radius: 50px; cursor: pointer;';
+
+                    video.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1000;';
+                    document.body.appendChild(video);
+                    document.body.appendChild(captureBtn);
+
+                    this.hideLoading();
+
+                    captureBtn.onclick = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(video, 0, 0);
+
+                        stream.getTracks().forEach(track => track.stop());
+                        document.body.removeChild(video);
+                        document.body.removeChild(captureBtn);
+
+                        canvas.toBlob((blob) => {
+                            this.handleImageBlob(blob);
+                        });
+                    };
+                } catch (err) {
+                    this.hideLoading();
+                    this.showToast('カメラへのアクセスが拒否されました');
+                }
+            },
+
+            // ファイルアップロード処理
+            handleFileUpload(file) {
+                if (!file.type.startsWith('image/')) {
+                    this.showToast('画像ファイルを選択してください');
+                    return;
+                }
+
+                this.showLoading();
+                const reader = new FileReader();
+
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        this.hideLoading();
+                        this.currentImage = img;
+                        this.showCroppingScreen();
+                    };
+                    img.src = e.target.result;
+                };
+
+                reader.readAsDataURL(file);
+            },
+
+            // 画像Blobの処理
+            handleImageBlob(blob) {
+                this.showLoading();
+                const url = URL.createObjectURL(blob);
+                const img = new Image();
+
+                img.onload = () => {
+                    URL.revokeObjectURL(url);
+                    this.hideLoading();
+                    this.currentImage = img;
+                    this.showCroppingScreen();
+                };
+
+                img.src = url;
+            },
+
+            // トリミング画面の表示
+            showCroppingScreen() {
+                this.changeState('cropping');
+
+                const croppingImage = document.getElementById('croppingImage');
+                croppingImage.src = this.currentImage.src;
+
+                // Cropper.jsの初期化
+                if (this.cropper) {
+                    this.cropper.destroy();
+                }
+
+                this.cropper = new Cropper(croppingImage, {
+                    aspectRatio: NaN,
+                    viewMode: 1,
+                    minCropBoxWidth: 50,
+                    minCropBoxHeight: 50,
+                    responsive: true,
+                    restore: true,
+                    center: true,
+                    highlight: true,
+                    cropBoxMovable: true,
+                    cropBoxResizable: true,
+                    toggleDragModeOnDblclick: false,
+                });
+            },
+
+            // アスペクト比の変更
+            changeAspectRatio(button) {
+                document.querySelectorAll('.aspect-button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                button.classList.add('active');
+
+                const ratio = parseFloat(button.dataset.ratio);
+                this.cropper.setAspectRatio(ratio);
+            },
+
+            // トリミングの確定
+            confirmCrop() {
+                this.showLoading();
+
+                this.croppedCanvas = this.cropper.getCroppedCanvas();
+
+                // プレビュー画像の設定
+                this.croppedCanvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    document.getElementById('previewImage').src = url;
+                    this.hideLoading();
+                    this.changeState('export');
+                });
+            },
+
+            // トリミングのキャンセル
+            cancelCrop() {
+                if (this.cropper) {
+                    this.cropper.destroy();
+                    this.cropper = null;
+                }
+                this.changeState('initial');
+            },
+
+            // 画像のダウンロード
+            downloadImage() {
+                this.croppedCanvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `cropped-image-${Date.now()}.png`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    this.showToast('画像をダウンロードしました');
+                }, 'image/png');
+            },
+
+            // クリップボードへのコピー
+            async copyToClipboard() {
+                try {
+                    this.croppedCanvas.toBlob(async (blob) => {
+                        await navigator.clipboard.write([
+                            new ClipboardItem({ [blob.type]: blob })
+                        ]);
+                        this.showToast('クリップボードにコピーしました');
+                    }, 'image/png');
+                } catch (err) {
+                    this.showToast('クリップボードへのコピーに失敗しました');
+                }
+            },
+
+            // リセット
+            reset() {
+                if (this.cropper) {
+                    this.cropper.destroy();
+                    this.cropper = null;
+                }
+                this.currentImage = null;
+                this.croppedCanvas = null;
+                document.getElementById('fileInput').value = '';
+                this.changeState('initial');
+            }
+        };
+
+        // アプリケーションの初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+        });
+    </script>
+</body>
+
+</html>
