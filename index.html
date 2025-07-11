@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>スクリーンショット＆トリミングツール</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.css">
     <style>
         * {
             margin: 0;
@@ -131,6 +132,12 @@
             width: 40px;
             text-align: center;
         }
+        
+        .input-method-icon i {
+            width: 20px;
+            height: 20px;
+            stroke-width: 2px;
+        }
 
         .input-method-info {
             flex: 1;
@@ -194,6 +201,12 @@
             font-size: 4rem;
             margin-bottom: 20px;
             opacity: 0.5;
+        }
+        
+        .drop-zone-icon i {
+            width: 64px;
+            height: 64px;
+            stroke-width: 1.5px;
         }
 
         .drop-zone-text {
@@ -332,6 +345,12 @@
         .export-option-icon {
             font-size: 1.2rem;
         }
+        
+        .export-option-icon i {
+            width: 18px;
+            height: 18px;
+            stroke-width: 2px;
+        }
 
         .export-option-title {
             font-weight: 500;
@@ -390,6 +409,12 @@
             align-items: center;
             justify-content: center;
             transition: all 0.3s ease;
+        }
+        
+        .history-btn i {
+            width: 16px;
+            height: 16px;
+            stroke-width: 2px;
         }
 
         .history-btn:hover:not(:disabled) {
@@ -505,6 +530,12 @@
         .tab-icon {
             font-size: 1.2rem;
         }
+        
+        .tab-icon i {
+            width: 16px;
+            height: 16px;
+            stroke-width: 2px;
+        }
 
         .tab-label {
             font-size: 0.7rem;
@@ -581,10 +612,10 @@
         <div class="header-actions">
             <div class="history-controls">
                 <button class="history-btn" id="undoBtn" title="元に戻す" disabled>
-                    <span>↶</span>
+                    <i data-lucide="undo"></i>
                 </button>
                 <button class="history-btn" id="redoBtn" title="やり直す" disabled>
-                    <span>↷</span>
+                    <i data-lucide="redo"></i>
                 </button>
             </div>
         </div>
@@ -598,7 +629,7 @@
                 <h3 class="sidebar-title">画像を取得</h3>
                 
                 <div class="input-method" id="screenshotBtn">
-                    <div class="input-method-icon">📸</div>
+                    <div class="input-method-icon"><i data-lucide="camera"></i></div>
                     <div class="input-method-info">
                         <div class="input-method-name">スクリーンショット</div>
                         <div class="input-method-desc">画面をキャプチャ</div>
@@ -606,7 +637,7 @@
                 </div>
 
                 <div class="input-method" id="uploadBtn">
-                    <div class="input-method-icon">📁</div>
+                    <div class="input-method-icon"><i data-lucide="folder-open"></i></div>
                     <div class="input-method-info">
                         <div class="input-method-name">ファイルアップロード</div>
                         <div class="input-method-desc">画像を選択</div>
@@ -614,7 +645,7 @@
                 </div>
 
                 <div class="input-method" id="pasteBtn">
-                    <div class="input-method-icon">📋</div>
+                    <div class="input-method-icon"><i data-lucide="clipboard"></i></div>
                     <div class="input-method-info">
                         <div class="input-method-name">クリップボード</div>
                         <div class="input-method-desc">画像を貼り付け</div>
@@ -622,7 +653,7 @@
                 </div>
 
                 <div class="input-method" id="cameraBtn">
-                    <div class="input-method-icon">📷</div>
+                    <div class="input-method-icon"><i data-lucide="video"></i></div>
                     <div class="input-method-info">
                         <div class="input-method-name">カメラ</div>
                         <div class="input-method-desc">写真を撮影</div>
@@ -637,7 +668,7 @@
                 <!-- ドロップゾーン -->
                 <div class="drop-zone" id="dropZone">
                     <div class="drop-zone-content">
-                        <div class="drop-zone-icon">🖼️</div>
+                        <div class="drop-zone-icon"><i data-lucide="image"></i></div>
                         <div class="drop-zone-text">画像をドラッグ＆ドロップ</div>
                         <div class="drop-zone-hint">または左側のメニューから選択</div>
                     </div>
@@ -669,7 +700,7 @@
                 
                 <div class="export-option" id="downloadBtn" disabled>
                     <div class="export-option-header">
-                        <div class="export-option-icon">💾</div>
+                        <div class="export-option-icon"><i data-lucide="download"></i></div>
                         <div class="export-option-title">ダウンロード</div>
                     </div>
                     <div class="export-option-desc">PNG形式で保存</div>
@@ -677,7 +708,7 @@
 
                 <div class="export-option" id="clipboardBtn" disabled>
                     <div class="export-option-header">
-                        <div class="export-option-icon">📋</div>
+                        <div class="export-option-icon"><i data-lucide="copy"></i></div>
                         <div class="export-option-title">クリップボード</div>
                     </div>
                     <div class="export-option-desc">画像をコピー</div>
@@ -708,15 +739,15 @@
     <nav class="mobile-tabs">
         <div class="tab-buttons">
             <button class="tab-button active" data-tab="editor">
-                <span class="tab-icon">✏️</span>
+                <span class="tab-icon"><i data-lucide="edit"></i></span>
                 <span class="tab-label">編集</span>
             </button>
             <button class="tab-button" data-tab="input">
-                <span class="tab-icon">📸</span>
+                <span class="tab-icon"><i data-lucide="camera"></i></span>
                 <span class="tab-label">入力</span>
             </button>
             <button class="tab-button" data-tab="export">
-                <span class="tab-icon">💾</span>
+                <span class="tab-icon"><i data-lucide="download"></i></span>
                 <span class="tab-label">出力</span>
             </button>
         </div>
@@ -734,6 +765,7 @@
     <input type="file" accept="image/*" class="file-input" id="fileInput">
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script>
         // アプリケーションの状態管理
         const App = {
@@ -749,6 +781,8 @@
                 this.checkFeatureSupport();
                 this.setupDragAndDrop();
                 this.setupMobileTabs();
+                // Lucide アイコンを初期化
+                lucide.createIcons();
             },
 
             // 機能サポートチェック
