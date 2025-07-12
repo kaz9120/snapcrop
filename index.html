@@ -249,26 +249,50 @@
             margin-right: 10px;
         }
 
-        .aspect-buttons {
+        .aspect-ratio-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .aspect-buttons-container {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .aspect-button-group {
             display: flex;
             gap: 5px;
+            padding: 0 10px;
+            border-left: 1px solid #3a3a3a;
+        }
+
+        .aspect-button-group:first-child {
+            border-left: none;
+            padding-left: 0;
         }
 
         .aspect-button {
             background: #2a2a2a;
-            color: #e0e0e0;
+            color: #888;
             border: 1px solid #3a3a3a;
-            padding: 6px 14px;
-            border-radius: 4px;
+            padding: 8px;
+            border-radius: 6px;
             cursor: pointer;
             transition: all 0.3s ease;
-            font-size: 0.85rem;
-            white-space: nowrap;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            min-width: 50px;
+            position: relative;
         }
 
         .aspect-button:hover {
             background: #333;
             border-color: #444;
+            color: #e0e0e0;
         }
 
         .aspect-button.active {
@@ -276,6 +300,25 @@
             border-color: #4CAF50;
             color: white;
         }
+
+        .aspect-button.portrait {
+            background: #2e7d32;
+            border-color: #2e7d32;
+        }
+
+        .aspect-icon {
+            width: 36px;
+            height: 36px;
+            pointer-events: none;
+        }
+
+        .aspect-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
 
         .toolbar-button {
             padding: 8px 20px;
@@ -489,6 +532,33 @@
             display: none;
         }
 
+        /* モバイル対応 */
+        @media (max-width: 1024px) {
+            .aspect-ratio-controls {
+                flex-wrap: wrap;
+            }
+            
+            .aspect-buttons-container {
+                flex-wrap: wrap;
+                width: 100%;
+            }
+            
+            .aspect-button-group {
+                border-left: none;
+                padding: 5px 0;
+            }
+            
+            .aspect-button {
+                min-width: 45px;
+            }
+            
+            .aspect-icon {
+                width: 30px;
+                height: 30px;
+            }
+            
+        }
+
         /* モバイル用タブ */
         .mobile-tabs {
             display: none;
@@ -682,11 +752,73 @@
             <div class="bottom-toolbar" id="bottomToolbar" style="display: none;">
                 <div class="toolbar-group">
                     <span class="toolbar-label">アスペクト比:</span>
-                    <div class="aspect-buttons">
-                        <button class="aspect-button" data-ratio="1.7777">16:9</button>
-                        <button class="aspect-button" data-ratio="1.3333">4:3</button>
-                        <button class="aspect-button" data-ratio="1">1:1</button>
-                        <button class="aspect-button active" data-ratio="NaN">自由</button>
+                    <div class="aspect-ratio-controls">
+                        <div class="aspect-buttons-container">
+                            <!-- 標準 -->
+                            <div class="aspect-button-group">
+                                <button class="aspect-button active" data-ratio="NaN" data-name="自由" title="自由選択">
+                                    <svg viewBox="0 0 40 40" class="aspect-icon">
+                                        <rect x="5" y="5" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3,3"/>
+                                    </svg>
+                                    <span class="aspect-label">自由</span>
+                                </button>
+                                <button class="aspect-button" data-ratio="1" data-name="1:1" title="正方形">
+                                    <svg viewBox="0 0 40 40" class="aspect-icon">
+                                        <rect x="8" y="8" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"/>
+                                    </svg>
+                                    <span class="aspect-label">1:1</span>
+                                </button>
+                                <button class="aspect-button" data-ratio="1.7778" data-name="16:9" title="ワイド">
+                                    <svg viewBox="0 0 40 40" class="aspect-icon">
+                                        <rect x="4" y="12" width="32" height="16" fill="none" stroke="currentColor" stroke-width="2"/>
+                                    </svg>
+                                    <span class="aspect-label">16:9</span>
+                                </button>
+                                <button class="aspect-button" data-ratio="1.3333" data-name="4:3" title="クラシック">
+                                    <svg viewBox="0 0 40 40" class="aspect-icon">
+                                        <rect x="6" y="10" width="28" height="20" fill="none" stroke="currentColor" stroke-width="2"/>
+                                    </svg>
+                                    <span class="aspect-label">4:3</span>
+                                </button>
+                            </div>
+                            
+                            <!-- SNS -->
+                            <div class="aspect-button-group">
+                                <button class="aspect-button" data-ratio="0.8" data-name="4:5" title="インスタ投稿">
+                                    <svg viewBox="0 0 40 40" class="aspect-icon">
+                                        <rect x="10" y="6" width="20" height="28" fill="none" stroke="currentColor" stroke-width="2"/>
+                                    </svg>
+                                    <span class="aspect-label">4:5</span>
+                                </button>
+                            </div>
+                            
+                            <!-- デザイン・写真 -->
+                            <div class="aspect-button-group">
+                                <button class="aspect-button" data-ratio="1.618" data-name="黄金比" title="黄金比 (1.618:1)">
+                                    <svg viewBox="0 0 40 40" class="aspect-icon">
+                                        <rect x="5" y="11" width="30" height="18" fill="none" stroke="currentColor" stroke-width="2"/>
+                                        <text x="20" y="24" text-anchor="middle" font-size="8" fill="currentColor">φ</text>
+                                    </svg>
+                                    <span class="aspect-label">φ</span>
+                                </button>
+                                <button class="aspect-button" data-ratio="1.414" data-name="白銀比" title="白銀比 (1.414:1)">
+                                    <svg viewBox="0 0 40 40" class="aspect-icon">
+                                        <rect x="6" y="10.5" width="28" height="19" fill="none" stroke="currentColor" stroke-width="2"/>
+                                        <text x="20" y="23" text-anchor="middle" font-size="8" fill="currentColor">√2</text>
+                                    </svg>
+                                    <span class="aspect-label">√2</span>
+                                </button>
+                                <button class="aspect-button" data-ratio="1.5" data-name="3:2" title="写真">
+                                    <svg viewBox="0 0 40 40" class="aspect-icon">
+                                        <rect x="6" y="10" width="28" height="20" fill="none" stroke="currentColor" stroke-width="2"/>
+                                        <circle cx="12" cy="16" r="2" fill="currentColor"/>
+                                        <path d="M6 26 L16 20 L22 24 L34 18" stroke="currentColor" stroke-width="1" fill="none"/>
+                                    </svg>
+                                    <span class="aspect-label">3:2</span>
+                                </button>
+                            </div>
+                        </div>
+                        
                     </div>
                 </div>
                 
@@ -853,7 +985,10 @@
 
                 // アスペクト比ボタン
                 document.querySelectorAll('.aspect-button').forEach(btn => {
-                    btn.addEventListener('click', (e) => this.changeAspectRatio(e.target));
+                    btn.addEventListener('click', (e) => {
+                        const button = e.currentTarget;
+                        this.changeAspectRatio(button);
+                    });
                 });
 
                 // エクスポートボタン
@@ -1169,11 +1304,15 @@
             changeAspectRatio(button) {
                 if (!this.cropper) return;
 
+                // すべてのボタンから active クラスを削除
                 document.querySelectorAll('.aspect-button').forEach(btn => {
                     btn.classList.remove('active');
                 });
+                
+                // 新しいボタンを active に
                 button.classList.add('active');
-
+                
+                // アスペクト比を設定
                 const ratio = parseFloat(button.dataset.ratio);
                 this.cropper.setAspectRatio(ratio);
             },
