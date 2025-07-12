@@ -901,367 +901,478 @@
     <script>
         // アプリケーションの状態管理
         const App = {
+            // 状態
             currentImage: null,
             cropper: null,
             imageHistory: [],
             historyIndex: -1,
             originalImageData: null,
 
+            // DOM要素のキャッシュ
+            elements: {},
+
             // 初期化
             init() {
+                this.cacheElements();
                 this.setupEventListeners();
                 this.checkFeatureSupport();
                 this.setupDragAndDrop();
                 this.setupMobileTabs();
-                // Lucide アイコンを初期化
                 lucide.createIcons();
+            },
+
+            // DOM要素をキャッシュ
+            cacheElements() {
+                this.elements = {
+                    // 入力
+                    screenshotBtn: document.getElementById('screenshotBtn'),
+                    uploadBtn: document.getElementById('uploadBtn'),
+                    pasteBtn: document.getElementById('pasteBtn'),
+                    cameraBtn: document.getElementById('cameraBtn'),
+                    fileInput: document.getElementById('fileInput'),
+                    
+                    // 表示
+                    dropZone: document.getElementById('dropZone'),
+                    canvasImage: document.getElementById('canvasImage'),
+                    canvasArea: document.getElementById('canvasArea'),
+                    bottomToolbar: document.getElementById('bottomToolbar'),
+                    imageInfo: document.getElementById('imageInfo'),
+                    
+                    // エクスポート
+                    downloadBtn: document.getElementById('downloadBtn'),
+                    clipboardBtn: document.getElementById('clipboardBtn'),
+                    exportOptions: document.querySelectorAll('.export-option'),
+                    
+                    // 履歴
+                    undoBtn: document.getElementById('undoBtn'),
+                    redoBtn: document.getElementById('redoBtn'),
+                    
+                    // その他
+                    loading: document.getElementById('loading'),
+                    toast: document.getElementById('toast'),
+                    
+                    // 情報表示
+                    imageDimensions: document.getElementById('imageDimensions'),
+                    imageFileSize: document.getElementById('imageFileSize'),
+                    imageFormat: document.getElementById('imageFormat'),
+                    
+                    // モバイル
+                    leftSidebar: document.getElementById('leftSidebar'),
+                    rightSidebar: document.getElementById('rightSidebar')
+                };
             },
 
             // 機能サポートチェック
             checkFeatureSupport() {
-                // スクリーンショット機能（デスクトップのみ）
-                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-                if (isMobile || !navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-                    document.getElementById('screenshotBtn').classList.add('disabled');
-                }
+                const features = {
+                    screenshot: this.isScreenshotSupported(),
+                    camera: this.isCameraSupported()
+                };
 
-                // カメラ機能
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    document.getElementById('cameraBtn').classList.add('disabled');
+                if (!features.screenshot) {
+                    this.elements.screenshotBtn.classList.add('disabled');
                 }
+                if (!features.camera) {
+                    this.elements.cameraBtn.classList.add('disabled');
+                }
+            },
+
+            // スクリーンショット機能サポート確認
+            isScreenshotSupported() {
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                return !isMobile && navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia;
+            },
+
+            // カメラ機能サポート確認
+            isCameraSupported() {
+                return navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
             },
 
             // イベントリスナーの設定
             setupEventListeners() {
-                // スクリーンショットボタン
-                document.getElementById('screenshotBtn').addEventListener('click', () => this.captureScreen());
-
-                // ファイルアップロードボタン
-                document.getElementById('uploadBtn').addEventListener('click', () => {
-                    document.getElementById('fileInput').click();
-                });
-
-                // ファイル選択時
-                document.getElementById('fileInput').addEventListener('change', (e) => {
-                    if (e.target.files.length > 0) {
-                        this.handleFileUpload(e.target.files[0]);
-                    }
-                });
-
-                // クリップボードからの貼り付け
-                document.getElementById('pasteBtn').addEventListener('click', async () => {
-                    try {
-                        const clipboardItems = await navigator.clipboard.read();
-                        for (const item of clipboardItems) {
-                            for (const type of item.types) {
-                                if (type.startsWith('image/')) {
-                                    const blob = await item.getType(type);
-                                    this.handleImageBlob(blob);
-                                    return;
-                                }
-                            }
-                        }
-                        this.showToast('クリップボードに画像がありません');
-                    } catch (err) {
-                        this.showToast('クリップボードへのアクセスが拒否されました');
-                    }
-                });
+                // 入力メソッド
+                this.elements.screenshotBtn.addEventListener('click', () => this.captureScreen());
+                this.elements.uploadBtn.addEventListener('click', () => this.elements.fileInput.click());
+                this.elements.fileInput.addEventListener('change', this.handleFileInputChange.bind(this));
+                this.elements.pasteBtn.addEventListener('click', this.pasteFromClipboard.bind(this));
+                this.elements.cameraBtn.addEventListener('click', () => this.captureCamera());
 
                 // ペーストイベント（Ctrl+V）
-                document.addEventListener('paste', (e) => {
-                    const items = e.clipboardData.items;
-                    for (let item of items) {
-                        if (item.type.startsWith('image/')) {
-                            const blob = item.getAsFile();
-                            this.handleImageBlob(blob);
-                            break;
-                        }
-                    }
-                });
-
-                // カメラボタン
-                document.getElementById('cameraBtn').addEventListener('click', () => this.captureCamera());
-
+                document.addEventListener('paste', this.handlePasteEvent.bind(this));
 
                 // アスペクト比ボタン
                 document.querySelectorAll('.aspect-button').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        const button = e.currentTarget;
-                        this.changeAspectRatio(button);
-                    });
+                    btn.addEventListener('click', (e) => this.changeAspectRatio(e.currentTarget));
                 });
 
                 // エクスポートボタン
-                document.getElementById('downloadBtn').addEventListener('click', () => this.downloadImage());
-                document.getElementById('clipboardBtn').addEventListener('click', () => this.copyToClipboard());
+                this.elements.downloadBtn.addEventListener('click', () => this.downloadImage());
+                this.elements.clipboardBtn.addEventListener('click', () => this.copyToClipboard());
 
                 // 履歴ボタン
-                document.getElementById('undoBtn').addEventListener('click', () => this.undo());
-                document.getElementById('redoBtn').addEventListener('click', () => this.redo());
+                this.elements.undoBtn.addEventListener('click', () => this.undo());
+                this.elements.redoBtn.addEventListener('click', () => this.redo());
 
                 // キーボードショートカット
-                document.addEventListener('keydown', (e) => {
-                    if (e.ctrlKey || e.metaKey) {
-                        if (e.key === 'z' && !e.shiftKey) {
+                document.addEventListener('keydown', this.handleKeyboardShortcuts.bind(this));
+            },
+
+            // ファイル入力変更時の処理
+            handleFileInputChange(e) {
+                if (e.target.files.length > 0) {
+                    this.handleFileUpload(e.target.files[0]);
+                }
+            },
+
+            // クリップボードから貼り付け
+            async pasteFromClipboard() {
+                try {
+                    const clipboardItems = await navigator.clipboard.read();
+                    const imageBlob = await this.findImageInClipboard(clipboardItems);
+                    if (imageBlob) {
+                        this.handleImageBlob(imageBlob);
+                    } else {
+                        this.showToast('クリップボードに画像がありません');
+                    }
+                } catch (err) {
+                    this.showToast('クリップボードへのアクセスが拒否されました');
+                }
+            },
+
+            // クリップボードから画像を検索
+            async findImageInClipboard(clipboardItems) {
+                for (const item of clipboardItems) {
+                    for (const type of item.types) {
+                        if (type.startsWith('image/')) {
+                            return await item.getType(type);
+                        }
+                    }
+                }
+                return null;
+            },
+
+            // ペーストイベントの処理
+            handlePasteEvent(e) {
+                const items = e.clipboardData.items;
+                for (let item of items) {
+                    if (item.type.startsWith('image/')) {
+                        const blob = item.getAsFile();
+                        this.handleImageBlob(blob);
+                        break;
+                    }
+                }
+            },
+
+            // キーボードショートカットの処理
+            handleKeyboardShortcuts(e) {
+                if (!(e.ctrlKey || e.metaKey)) return;
+                
+                switch (e.key) {
+                    case 'z':
+                        if (!e.shiftKey) {
                             e.preventDefault();
                             this.undo();
-                        } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
+                        } else {
                             e.preventDefault();
                             this.redo();
-                        } else if (e.key === 'c' && this.currentImage) {
+                        }
+                        break;
+                    case 'y':
+                        e.preventDefault();
+                        this.redo();
+                        break;
+                    case 'c':
+                        if (this.currentImage) {
                             e.preventDefault();
                             this.copyToClipboard();
                         }
-                    }
-                });
+                        break;
+                }
             },
 
             // ドラッグ&ドロップの設定
             setupDragAndDrop() {
-                const dropZone = document.getElementById('dropZone');
-                const canvasArea = document.getElementById('canvasArea');
+                const dragEvents = ['dragenter', 'dragover', 'dragleave', 'drop'];
+                const activateEvents = ['dragenter', 'dragover'];
+                const deactivateEvents = ['dragleave', 'drop'];
 
-                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                    canvasArea.addEventListener(eventName, (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
+                // すべてのドラッグイベントでデフォルト動作を防止
+                dragEvents.forEach(event => {
+                    this.elements.canvasArea.addEventListener(event, this.preventDefaults, false);
+                });
+
+                // ドロップゾーンの状態制御
+                activateEvents.forEach(event => {
+                    this.elements.canvasArea.addEventListener(event, () => {
+                        this.elements.dropZone.classList.add('active');
                     }, false);
                 });
 
-                ['dragenter', 'dragover'].forEach(eventName => {
-                    canvasArea.addEventListener(eventName, () => {
-                        dropZone.classList.add('active');
+                deactivateEvents.forEach(event => {
+                    this.elements.canvasArea.addEventListener(event, () => {
+                        this.elements.dropZone.classList.remove('active');
                     }, false);
                 });
 
-                ['dragleave', 'drop'].forEach(eventName => {
-                    canvasArea.addEventListener(eventName, () => {
-                        dropZone.classList.remove('active');
-                    }, false);
-                });
+                // ファイルドロップ処理
+                this.elements.canvasArea.addEventListener('drop', this.handleDrop.bind(this), false);
+            },
 
-                canvasArea.addEventListener('drop', (e) => {
-                    const files = e.dataTransfer.files;
-                    if (files.length > 0) {
-                        const file = files[0];
-                        if (file.type.startsWith('image/')) {
-                            this.handleFileUpload(file);
-                        }
+            // デフォルト動作を防止
+            preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            },
+
+            // ドロップ処理
+            handleDrop(e) {
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (file.type.startsWith('image/')) {
+                        this.handleFileUpload(file);
                     }
-                }, false);
+                }
             },
 
             // モバイルタブの設定
             setupMobileTabs() {
                 const tabButtons = document.querySelectorAll('.tab-button');
-                const leftSidebar = document.getElementById('leftSidebar');
-                const rightSidebar = document.getElementById('rightSidebar');
 
                 tabButtons.forEach(button => {
-                    button.addEventListener('click', () => {
-                        // すべてのタブを非アクティブに
-                        tabButtons.forEach(btn => btn.classList.remove('active'));
-                        button.classList.add('active');
-
-                        // サイドバーを非表示
-                        leftSidebar.classList.remove('active');
-                        rightSidebar.classList.remove('active');
-
-                        // 選択されたタブに応じて表示
-                        const tab = button.dataset.tab;
-                        if (tab === 'input') {
-                            leftSidebar.classList.add('active');
-                        } else if (tab === 'export') {
-                            rightSidebar.classList.add('active');
-                        }
-                    });
+                    button.addEventListener('click', () => this.switchMobileTab(button, tabButtons));
                 });
             },
 
-            // ローディング表示
+            // モバイルタブ切り替え
+            switchMobileTab(activeButton, allButtons) {
+                // すべてのタブを非アクティブに
+                allButtons.forEach(btn => btn.classList.remove('active'));
+                activeButton.classList.add('active');
+
+                // サイドバーを非表示
+                this.elements.leftSidebar.classList.remove('active');
+                this.elements.rightSidebar.classList.remove('active');
+
+                // 選択されたタブに応じて表示
+                const tab = activeButton.dataset.tab;
+                if (tab === 'input') {
+                    this.elements.leftSidebar.classList.add('active');
+                } else if (tab === 'export') {
+                    this.elements.rightSidebar.classList.add('active');
+                }
+            },
+
+            // ローディング表示制御
+            toggleLoading(show) {
+                this.elements.loading.style.display = show ? 'flex' : 'none';
+            },
+
             showLoading() {
-                document.getElementById('loading').style.display = 'flex';
+                this.toggleLoading(true);
             },
 
             hideLoading() {
-                document.getElementById('loading').style.display = 'none';
+                this.toggleLoading(false);
             },
 
             // トースト通知
             showToast(message, isError = false) {
-                const toast = document.getElementById('toast');
-                toast.textContent = message;
-                toast.classList.add('show');
-                if (isError) {
-                    toast.classList.add('error');
-                } else {
-                    toast.classList.remove('error');
-                }
+                this.elements.toast.textContent = message;
+                this.elements.toast.classList.add('show');
+                this.elements.toast.classList.toggle('error', isError);
 
                 setTimeout(() => {
-                    toast.classList.remove('show');
+                    this.elements.toast.classList.remove('show');
                 }, 3000);
             },
+
 
             // スクリーンキャプチャ
             async captureScreen() {
                 try {
                     this.showLoading();
-
                     const stream = await navigator.mediaDevices.getDisplayMedia({
                         video: true,
                         audio: false
                     });
-
-                    const video = document.createElement('video');
-                    video.srcObject = stream;
-                    video.play();
-
-                    video.onloadedmetadata = () => {
-                        const canvas = document.createElement('canvas');
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
-                        const ctx = canvas.getContext('2d');
-
-                        // 少し待ってから撮影
-                        setTimeout(() => {
-                            ctx.drawImage(video, 0, 0);
-                            stream.getTracks().forEach(track => track.stop());
-
-                            canvas.toBlob((blob) => {
-                                this.hideLoading();
-                                this.handleImageBlob(blob);
-                            });
-                        }, 100);
-                    };
+                    await this.processScreenCapture(stream);
                 } catch (err) {
                     this.hideLoading();
-                    if (err.name === 'NotAllowedError') {
-                        this.showToast('スクリーンキャプチャが拒否されました');
-                    } else {
-                        this.showToast('スクリーンキャプチャに失敗しました');
-                    }
+                    const message = err.name === 'NotAllowedError' 
+                        ? 'スクリーンキャプチャが拒否されました'
+                        : 'スクリーンキャプチャに失敗しました';
+                    this.showToast(message);
                 }
+            },
+
+            // スクリーンキャプチャ処理
+            async processScreenCapture(stream) {
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                video.play();
+
+                video.onloadedmetadata = async () => {
+                    // 少し待ってから撮影
+                    setTimeout(async () => {
+                        const canvas = this.createCanvasFromVideo(video);
+                        stream.getTracks().forEach(track => track.stop());
+                        
+                        canvas.toBlob((blob) => {
+                            this.hideLoading();
+                            this.handleImageBlob(blob);
+                        });
+                    }, 100);
+                };
             },
 
             // カメラキャプチャ
             async captureCamera() {
                 try {
                     this.showLoading();
-
                     const stream = await navigator.mediaDevices.getUserMedia({
                         video: { facingMode: 'environment' }
                     });
-
-                    const video = document.createElement('video');
-                    video.srcObject = stream;
-                    video.play();
-
-                    // カメラプレビューを表示（簡易版）
-                    const captureBtn = document.createElement('button');
-                    captureBtn.textContent = '撮影';
-                    captureBtn.style.cssText = 'position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 1001; padding: 15px 30px; font-size: 18px; background: #4CAF50; color: white; border: none; border-radius: 50px; cursor: pointer;';
-
-                    video.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1000;';
-                    document.body.appendChild(video);
-                    document.body.appendChild(captureBtn);
-
-                    this.hideLoading();
-
-                    captureBtn.onclick = () => {
-                        const canvas = document.createElement('canvas');
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(video, 0, 0);
-
-                        stream.getTracks().forEach(track => track.stop());
-                        document.body.removeChild(video);
-                        document.body.removeChild(captureBtn);
-
-                        canvas.toBlob((blob) => {
-                            this.handleImageBlob(blob);
-                        });
-                    };
+                    this.setupCameraPreview(stream);
                 } catch (err) {
                     this.hideLoading();
-                    this.showToast('カメラへのアクセスが拒否されました');
+                    const message = err.name === 'NotAllowedError'
+                        ? 'カメラへのアクセスが拒否されました'
+                        : 'カメラアクセスに失敗しました';
+                    this.showToast(message);
                 }
+            },
+
+
+            // ビデオからキャンバスを作成
+            createCanvasFromVideo(video) {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0);
+                return canvas;
+            },
+
+            // カメラプレビューの設定
+            setupCameraPreview(stream) {
+                const video = document.createElement('video');
+                const captureBtn = this.createCaptureButton();
+                
+                this.applyCameraPreviewStyles(video, captureBtn);
+                video.srcObject = stream;
+                video.play();
+                
+                document.body.appendChild(video);
+                document.body.appendChild(captureBtn);
+                this.hideLoading();
+                
+                captureBtn.onclick = () => this.handleCameraCapture(video, stream, captureBtn);
+            },
+
+            // 撮影ボタンの作成
+            createCaptureButton() {
+                const btn = document.createElement('button');
+                btn.textContent = '撮影';
+                return btn;
+            },
+
+            // カメラプレビューのスタイル適用
+            applyCameraPreviewStyles(video, button) {
+                video.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1000;';
+                button.style.cssText = 'position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 1001; padding: 15px 30px; font-size: 18px; background: #4CAF50; color: white; border: none; border-radius: 50px; cursor: pointer;';
+            },
+
+            // カメラ撮影処理
+            handleCameraCapture(video, stream, button) {
+                const canvas = this.createCanvasFromVideo(video);
+                stream.getTracks().forEach(track => track.stop());
+                document.body.removeChild(video);
+                document.body.removeChild(button);
+                
+                canvas.toBlob((blob) => {
+                    this.handleImageBlob(blob);
+                });
+            },
+
+            // 画像処理の共通ロジック
+            processImageSource(src, isBlob = false) {
+                this.showLoading();
+                const img = new Image();
+                
+                img.onload = () => {
+                    this.hideLoading();
+                    this.currentImage = img;
+                    this.originalImageData = src;
+                    this.elements.canvasImage.src = src;
+                    this.displayImage();
+                };
+                
+                img.onerror = () => {
+                    this.hideLoading();
+                    this.showToast('画像の読み込みに失敗しました', true);
+                };
+                
+                img.src = src;
             },
 
             // ファイルアップロード処理
             handleFileUpload(file) {
-                if (!file.type.startsWith('image/')) {
+                if (!this.validateImageFile(file)) {
                     this.showToast('画像ファイルを選択してください');
                     return;
                 }
 
-                this.showLoading();
                 const reader = new FileReader();
-
-                reader.onload = (e) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        this.hideLoading();
-                        this.currentImage = img;
-                        this.originalImageData = e.target.result; // 元画像データを保存
-                        document.getElementById('canvasImage').src = e.target.result;
-                        this.displayImage();
-                    };
-                    img.src = e.target.result;
+                reader.onload = (e) => this.processImageSource(e.target.result);
+                reader.onerror = () => {
+                    this.hideLoading();
+                    this.showToast('ファイルの読み込みに失敗しました', true);
                 };
-
                 reader.readAsDataURL(file);
             },
 
             // 画像Blobの処理
             handleImageBlob(blob) {
-                this.showLoading();
                 const url = URL.createObjectURL(blob);
-                const img = new Image();
+                this.processImageSource(url, true);
+            },
 
-                img.onload = () => {
-                    this.hideLoading();
-                    this.currentImage = img;
-                    this.originalImageData = url; // 元画像データを保存
-                    document.getElementById('canvasImage').src = url;
-                    this.displayImage();
-                };
-
-                img.src = url;
+            // 画像ファイルの検証
+            validateImageFile(file) {
+                return file && file.type.startsWith('image/');
             },
 
             // 画像の表示
             displayImage() {
-                const dropZone = document.getElementById('dropZone');
-                const canvasImage = document.getElementById('canvasImage');
-                const bottomToolbar = document.getElementById('bottomToolbar');
-                const exportButtons = document.querySelectorAll('.export-option');
-                const imageInfo = document.getElementById('imageInfo');
+                this.updateUIForImageDisplay();
+                this.updateImageInfo();
+                this.addToHistory();
+                this.setupImageCropper();
+            },
 
+            // 画像表示時のUI更新
+            updateUIForImageDisplay() {
                 // ドロップゾーンを非表示
-                dropZone.style.display = 'none';
-                canvasImage.style.display = 'block';
-                bottomToolbar.style.display = 'flex';
-                imageInfo.style.display = 'block';
+                this.elements.dropZone.style.display = 'none';
+                this.elements.canvasImage.style.display = 'block';
+                this.elements.bottomToolbar.style.display = 'flex';
+                this.elements.imageInfo.style.display = 'block';
 
                 // エクスポートボタンを有効化
-                exportButtons.forEach(btn => btn.removeAttribute('disabled'));
+                this.elements.exportOptions.forEach(btn => btn.removeAttribute('disabled'));
+            },
 
-                // 画像情報を更新
-                this.updateImageInfo();
-
-                // 履歴に追加
-                this.addToHistory();
-
+            // 画像Cropperの設定
+            setupImageCropper() {
+                const onImageLoad = () => this.initializeCropper();
+                
                 // 画像がロードされたら自動的にトリミング可能にする
-                canvasImage.onload = () => {
-                    this.initializeCropper();
-                };
+                this.elements.canvasImage.onload = onImageLoad;
 
                 // 既にロードされている場合は即座に初期化
-                if (canvasImage.complete) {
-                    this.initializeCropper();
+                if (this.elements.canvasImage.complete) {
+                    onImageLoad();
                 }
             },
 
@@ -1269,16 +1380,21 @@
             initializeCropper() {
                 if (!this.currentImage) return;
 
-                console.log('Cropper自動初期化開始');
-                const canvasImage = document.getElementById('canvasImage');
+                this.destroyExistingCropper();
+                this.createNewCropper();
+            },
 
-                // 既存のCropperを破棄
+            // 既存のCropperを破棄
+            destroyExistingCropper() {
                 if (this.cropper) {
                     this.cropper.destroy();
+                    this.cropper = null;
                 }
+            },
 
-                // 新しいCropperを作成
-                this.cropper = new Cropper(canvasImage, {
+            // 新しいCropperを作成
+            createNewCropper() {
+                const cropperOptions = {
                     aspectRatio: NaN,
                     viewMode: 1,
                     minCropBoxWidth: 50,
@@ -1291,82 +1407,107 @@
                     cropBoxResizable: true,
                     toggleDragModeOnDblclick: false,
                     ready: () => {
-                        console.log('Cropper準備完了（自動初期化）');
-                    },
-                    crop: () => {
-                        // トリミング範囲が変更された時の処理（必要に応じて）
+                        console.log('Cropper準備完了');
                     }
-                });
+                };
+
+                this.cropper = new Cropper(this.elements.canvasImage, cropperOptions);
             },
 
 
-            // アスペクト比の変更
-            changeAspectRatio(button) {
+            // アスペクト比変更処理
+            changeAspectRatio(selectedButton) {
                 if (!this.cropper) return;
 
-                // すべてのボタンから active クラスを削除
+                this.updateAspectButtonStates(selectedButton);
+                this.applyCropperAspectRatio(selectedButton);
+            },
+
+            // アスペクトボタンの状態更新
+            updateAspectButtonStates(activeButton) {
                 document.querySelectorAll('.aspect-button').forEach(btn => {
                     btn.classList.remove('active');
                 });
-                
-                // 新しいボタンを active に
-                button.classList.add('active');
-                
-                // アスペクト比を設定
-                const ratio = parseFloat(button.dataset.ratio);
-                this.cropper.setAspectRatio(ratio);
+                activeButton.classList.add('active');
             },
 
-            // 履歴に追加
+            // Cropperのアスペクト比適用
+            applyCropperAspectRatio(button) {
+                const aspectRatio = parseFloat(button.dataset.ratio);
+                this.cropper.setAspectRatio(aspectRatio);
+            },
+
+            // 履歴管理
             addToHistory() {
                 if (!this.currentImage) return;
 
                 try {
-                    // 現在の位置以降の履歴を削除
-                    this.imageHistory = this.imageHistory.slice(0, this.historyIndex + 1);
-                    
-                    // 新しい状態を追加
-                    const canvas = document.createElement('canvas');
-                    canvas.width = this.currentImage.width;
-                    canvas.height = this.currentImage.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(this.currentImage, 0, 0);
-                    
-                    this.imageHistory.push(canvas.toDataURL());
-                    this.historyIndex++;
-                    
-                    // 履歴が50件を超えたら古いものを削除
-                    if (this.imageHistory.length > 50) {
-                        this.imageHistory.shift();
-                        this.historyIndex--;
-                    }
-                    
+                    this.trimHistoryFromCurrentPosition();
+                    const imageData = this.createImageDataURL();
+                    this.addImageToHistory(imageData);
+                    this.limitHistorySize();
                     this.updateHistoryButtons();
                 } catch (error) {
                     console.error('履歴追加エラー:', error);
                 }
             },
 
-            // 履歴ボタンの更新
-            updateHistoryButtons() {
-                document.getElementById('undoBtn').disabled = this.historyIndex <= 0;
-                document.getElementById('redoBtn').disabled = this.historyIndex >= this.imageHistory.length - 1;
+            // 現在の位置以降の履歴をトリム
+            trimHistoryFromCurrentPosition() {
+                this.imageHistory = this.imageHistory.slice(0, this.historyIndex + 1);
             },
 
-            // 元に戻す
+            // 画像データURLを作成
+            createImageDataURL() {
+                const canvas = document.createElement('canvas');
+                canvas.width = this.currentImage.width;
+                canvas.height = this.currentImage.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(this.currentImage, 0, 0);
+                return canvas.toDataURL();
+            },
+
+            // 履歴に画像を追加
+            addImageToHistory(imageData) {
+                this.imageHistory.push(imageData);
+                this.historyIndex++;
+            },
+
+            // 履歴サイズを制限
+            limitHistorySize(maxSize = 50) {
+                if (this.imageHistory.length > maxSize) {
+                    this.imageHistory.shift();
+                    this.historyIndex--;
+                }
+            },
+
+            // 履歴ボタンの更新
+            updateHistoryButtons() {
+                this.elements.undoBtn.disabled = this.historyIndex <= 0;
+                this.elements.redoBtn.disabled = this.historyIndex >= this.imageHistory.length - 1;
+            },
+
+            // 履歴ナビゲーション
             undo() {
-                if (this.historyIndex > 0) {
+                if (this.canUndo()) {
                     this.historyIndex--;
                     this.loadFromHistory();
                 }
             },
 
-            // やり直す
             redo() {
-                if (this.historyIndex < this.imageHistory.length - 1) {
+                if (this.canRedo()) {
                     this.historyIndex++;
                     this.loadFromHistory();
                 }
+            },
+
+            canUndo() {
+                return this.historyIndex > 0;
+            },
+
+            canRedo() {
+                return this.historyIndex < this.imageHistory.length - 1;
             },
 
             // 履歴から読み込み
@@ -1374,17 +1515,10 @@
                 const img = new Image();
                 img.onload = () => {
                     this.currentImage = img;
-                    document.getElementById('canvasImage').src = this.imageHistory[this.historyIndex];
+                    this.elements.canvasImage.src = this.imageHistory[this.historyIndex];
                     this.updateImageInfo();
                     this.updateHistoryButtons();
-                    
-                    // Cropperが有効な場合は破棄
-                    if (this.cropper) {
-                        this.cropper.destroy();
-                        this.cropper = null;
-                        document.getElementById('cropBtn').innerHTML = '<span>✂️</span><span>トリミング</span>';
-                        document.getElementById('cropBtn').onclick = () => this.startCropping();
-                    }
+                    this.destroyExistingCropper();
                 };
                 img.src = this.imageHistory[this.historyIndex];
             },
@@ -1394,90 +1528,124 @@
                 if (!this.currentImage) return;
 
                 try {
-                    document.getElementById('imageDimensions').textContent = 
-                        `${this.currentImage.width} × ${this.currentImage.height}`;
-                    
-                    // ファイルサイズの推定（正確ではない）
-                    const pixels = this.currentImage.width * this.currentImage.height;
-                    const estimatedSize = Math.round(pixels * 4 / 1024); // KB
-                    document.getElementById('imageFileSize').textContent = 
-                        estimatedSize > 1024 ? `~${(estimatedSize / 1024).toFixed(1)} MB` : `~${estimatedSize} KB`;
-                    
-                    document.getElementById('imageFormat').textContent = 'PNG';
+                    this.updateImageDimensions();
+                    this.updateImageFileSize();
+                    this.updateImageFormat();
                 } catch (error) {
                     console.error('画像情報更新エラー:', error);
                 }
             },
 
-            // 画像のダウンロード
-            downloadImage() {
-                if (!this.currentImage) return;
+            // 画像のサイズ情報更新
+            updateImageDimensions() {
+                this.elements.imageDimensions.textContent = 
+                    `${this.currentImage.width} × ${this.currentImage.height}`;
+            },
 
-                let canvas;
-                
+            // ファイルサイズ情報更新
+            updateImageFileSize() {
+                const estimatedSize = this.calculateEstimatedFileSize();
+                this.elements.imageFileSize.textContent = this.formatFileSize(estimatedSize);
+            },
+
+            // ファイルサイズの推定計算
+            calculateEstimatedFileSize() {
+                const pixels = this.currentImage.width * this.currentImage.height;
+                return Math.round(pixels * 4 / 1024); // KB
+            },
+
+            // ファイルサイズのフォーマット
+            formatFileSize(sizeInKB) {
+                return sizeInKB > 1024 
+                    ? `~${(sizeInKB / 1024).toFixed(1)} MB` 
+                    : `~${sizeInKB} KB`;
+            },
+
+            // 画像フォーマット情報更新
+            updateImageFormat() {
+                this.elements.imageFormat.textContent = 'PNG';
+            },
+
+            // エクスポート用キャンバス取得
+            getExportCanvas() {
+                if (!this.currentImage) return null;
+
                 // Cropperが有効な場合は選択範囲を使用
                 if (this.cropper) {
-                    canvas = this.cropper.getCroppedCanvas();
+                    const canvas = this.cropper.getCroppedCanvas();
                     if (!canvas) {
                         this.showToast('選択範囲が無効です', true);
-                        return;
+                        return null;
                     }
-                } else {
-                    // Cropperが無効な場合は元の画像を使用
-                    canvas = document.createElement('canvas');
-                    canvas.width = this.currentImage.width;
-                    canvas.height = this.currentImage.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(this.currentImage, 0, 0);
+                    return canvas;
                 }
 
+                // Cropperが無効な場合は元の画像を使用
+                return this.createCanvasFromImage(this.currentImage);
+            },
+
+            // 画像からキャンバスを作成
+            createCanvasFromImage(image) {
+                const canvas = document.createElement('canvas');
+                canvas.width = image.width;
+                canvas.height = image.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(image, 0, 0);
+                return canvas;
+            },
+
+            // 画像のダウンロード
+            downloadImage() {
+                const canvas = this.getExportCanvas();
+                if (!canvas) return;
+
                 canvas.toBlob((blob) => {
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `image-${Date.now()}.png`;
-                    a.click();
-                    URL.revokeObjectURL(url);
+                    this.createDownloadLink(blob);
                     this.showToast('画像をダウンロードしました');
                 }, 'image/png');
             },
 
+            // ダウンロードリンク作成
+            createDownloadLink(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `image-${Date.now()}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+            },
+
             // クリップボードへのコピー
             async copyToClipboard() {
-                if (!this.currentImage) return;
+                const canvas = this.getExportCanvas();
+                if (!canvas) return;
 
                 try {
-                    let canvas;
-                    
-                    // Cropperが有効な場合は選択範囲を使用
-                    if (this.cropper) {
-                        canvas = this.cropper.getCroppedCanvas();
-                        if (!canvas) {
-                            this.showToast('選択範囲が無効です', true);
-                            return;
-                        }
-                    } else {
-                        // Cropperが無効な場合は元の画像を使用
-                        canvas = document.createElement('canvas');
-                        canvas.width = this.currentImage.width;
-                        canvas.height = this.currentImage.height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(this.currentImage, 0, 0);
-                    }
-
-                    canvas.toBlob(async (blob) => {
-                        await navigator.clipboard.write([
-                            new ClipboardItem({ [blob.type]: blob })
-                        ]);
-                        this.showToast('クリップボードにコピーしました');
-                    }, 'image/png');
+                    await this.copyCanvasToClipboard(canvas);
+                    this.showToast('クリップボードにコピーしました');
                 } catch (err) {
                     this.showToast('クリップボードへのコピーに失敗しました', true);
                 }
+            },
+
+            // キャンバスをクリップボードにコピー
+            async copyCanvasToClipboard(canvas) {
+                return new Promise((resolve, reject) => {
+                    canvas.toBlob(async (blob) => {
+                        try {
+                            await navigator.clipboard.write([
+                                new ClipboardItem({ [blob.type]: blob })
+                            ]);
+                            resolve();
+                        } catch (err) {
+                            reject(err);
+                        }
+                    }, 'image/png');
+                });
             }
         };
 
-        // アプリケーションの初期化
+        // アプリケーション初期化
         document.addEventListener('DOMContentLoaded', () => {
             App.init();
         });
