@@ -1087,6 +1087,12 @@
                             this.copyToClipboard();
                         }
                         break;
+                    case 'a':
+                        if (this.cropper) {
+                            e.preventDefault();
+                            this.selectAll();
+                        }
+                        break;
                 }
             },
 
@@ -1490,6 +1496,29 @@
             applyCropperAspectRatio(button) {
                 const aspectRatio = parseFloat(button.dataset.ratio);
                 this.cropper.setAspectRatio(aspectRatio);
+            },
+
+            // 全選択（Ctrl+A）
+            selectAll() {
+                if (!this.cropper) return;
+                
+                // アスペクト比をフリーに設定
+                this.cropper.setAspectRatio(NaN);
+                
+                // フリーボタンをアクティブにする
+                const freeButton = document.querySelector('.aspect-button[data-ratio="NaN"]');
+                if (freeButton) {
+                    this.updateAspectButtonStates(freeButton);
+                }
+                
+                // キャンバス全体を選択
+                const canvasData = this.cropper.getCanvasData();
+                this.cropper.setCropBoxData({
+                    left: canvasData.left,
+                    top: canvasData.top,
+                    width: canvasData.width,
+                    height: canvasData.height
+                });
             },
 
             // 履歴管理
