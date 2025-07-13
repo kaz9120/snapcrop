@@ -5,6 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SnapCrop</title>
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="alternate icon" href="icon.svg">
+    <link rel="mask-icon" href="icon.svg" color="#4B4B4B">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.css">
     <style>
@@ -49,6 +52,15 @@
             font-size: 1.5rem;
             font-weight: 600;
             color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-logo {
+            width: 28px;
+            height: 28px;
+            fill: #fff;
         }
 
         .header-actions {
@@ -731,6 +743,11 @@
                 font-size: 1.2rem;
             }
 
+            .header-logo {
+                width: 24px;
+                height: 24px;
+            }
+
             .header-actions {
                 display: none;
             }
@@ -741,7 +758,12 @@
 <body>
     <!-- ヘッダー -->
     <header class="header">
-        <h1>SnapCrop</h1>
+        <h1>
+            <svg class="header-logo" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                <path d="M434.088,367.849V77.361H144.71V0.551H77.92v76.81H0v66.774h77.92v290.504h289.378v76.81h66.79v-76.81H512v-66.79H434.088z M367.298,367.849H144.71V144.135h222.588V367.849z"/>
+            </svg>
+            SnapCrop
+        </h1>
         <div class="header-actions">
             <div class="history-controls">
                 <button class="history-btn" id="undoBtn" title="元に戻す" disabled>
