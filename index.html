@@ -1192,10 +1192,11 @@
             async captureScreen() {
                 try {
                     this.showLoading();
-                    const stream = await navigator.mediaDevices.getDisplayMedia({
-                        video: true,
-                        audio: false
-                    });
+                    const stream = await this.captureScreenWithFocusControl();
+                    if (!stream) {
+                        this.hideLoading();
+                        return;
+                    }
                     await this.processScreenCapture(stream);
                 } catch (err) {
                     this.hideLoading();
@@ -1203,6 +1204,60 @@
                         ? 'スクリーンキャプチャが拒否されました'
                         : 'スクリーンキャプチャに失敗しました';
                     this.showToast(message);
+                }
+            },
+
+            // フォーカスを制御しながらスクリーンキャプチャを開始
+            async captureScreenWithFocusControl() {
+                // Conditional Focus APIのサポート確認
+                const isConditionalFocusSupported = 'CaptureController' in window &&
+                    'setFocusBehavior' in CaptureController.prototype;
+
+                if (!isConditionalFocusSupported) {
+                    console.warn('Conditional Focus APIはサポートされていません。デフォルトでフォーカスが移動します。');
+                    // サポートされていない場合は、通常のgetDisplayMediaを呼び出す
+                    return navigator.mediaDevices.getDisplayMedia({ 
+                        video: true,
+                        audio: false 
+                    });
+                }
+
+                // CaptureControllerのインスタンス化
+                const controller = new CaptureController();
+
+                try {
+                    // コントローラを渡し、ストリームを取得
+                    const stream = await navigator.mediaDevices.getDisplayMedia({
+                        video: true,
+                        audio: false,
+                        controller // キャプチャセッションにコントローラを関連付ける
+                    });
+
+                    // ビデオトラックを取得しサーフェスタイプを確認
+                    const videoTrack = stream.getVideoTracks()[0];
+                    const displaySurface = videoTrack.getSettings().displaySurface;
+
+                    // フォーカス挙動を条件付きで設定
+                    if (displaySurface === 'browser' || displaySurface === 'window') {
+                        // ブラウザタブまたはウィンドウの場合、フォーカス切り替えを防ぐ
+                        controller.setFocusBehavior('no-focus-change');
+                        console.log('フォーカス移動を防止しました');
+                    } else {
+                        // 画面全体（'monitor'）の場合は何もしない
+                        console.log('画面全体の共有です。フォーカス制御は適用されません');
+                    }
+
+                    return stream;
+
+                } catch (err) {
+                    // ユーザーによる拒否や、その他のエラーを処理
+                    console.error('スクリーンキャプチャの開始中にエラーが発生しました:', err);
+                    if (err.name === 'NotAllowedError') {
+                        this.showToast('スクリーンキャプチャが拒否されました');
+                    } else {
+                        this.showToast('スクリーンキャプチャに失敗しました');
+                    }
+                    return null;
                 }
             },
 
