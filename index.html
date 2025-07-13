@@ -254,6 +254,57 @@
             align-items: center;
             gap: 15px;
         }
+        
+        /* 縦横切り替えボタン */
+        .orientation-toggle {
+            display: flex;
+            align-items: center;
+            padding-right: 15px;
+            border-right: 1px solid #3a3a3a;
+        }
+        
+        .orientation-button {
+            background: #2a2a2a;
+            color: #888;
+            border: 1px solid #3a3a3a;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            min-width: 50px;
+        }
+        
+        .orientation-button:hover {
+            background: #333;
+            border-color: #444;
+            color: #e0e0e0;
+        }
+        
+        .orientation-button.portrait {
+            background: #2e7d32;
+            border-color: #2e7d32;
+            color: white;
+        }
+        
+        .orientation-icon {
+            width: 24px;
+            height: 24px;
+            transition: transform 0.3s ease;
+        }
+        
+        .orientation-button.portrait .orientation-icon {
+            transform: rotate(90deg);
+        }
+        
+        .orientation-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
 
         .aspect-buttons-container {
             display: flex;
@@ -538,6 +589,18 @@
                 flex-wrap: wrap;
             }
             
+            .orientation-toggle {
+                border-right: none;
+                padding-right: 0;
+                padding-bottom: 10px;
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .orientation-button {
+                min-width: 60px;
+            }
+            
             .aspect-buttons-container {
                 flex-wrap: wrap;
                 width: 100%;
@@ -753,6 +816,17 @@
                 <div class="toolbar-group">
                     <span class="toolbar-label">アスペクト比:</span>
                     <div class="aspect-ratio-controls">
+                        <!-- 縦横切り替えボタン -->
+                        <div class="orientation-toggle">
+                            <button class="orientation-button" id="orientationToggle" title="縦横切り替え">
+                                <svg viewBox="0 0 24 24" class="orientation-icon">
+                                    <rect x="7" y="3" width="10" height="14" fill="none" stroke="currentColor" stroke-width="2" rx="1"/>
+                                    <path d="M11 21l-2-2m2 2l2-2m-2 2V19" stroke="currentColor" stroke-width="2" fill="none"/>
+                                </svg>
+                                <span class="orientation-label">縦横</span>
+                            </button>
+                        </div>
+                        
                         <div class="aspect-buttons-container">
                             <!-- 標準 -->
                             <div class="aspect-button-group">
@@ -907,6 +981,7 @@
             imageHistory: [],
             historyIndex: -1,
             originalImageData: null,
+            isPortraitMode: false, // 縦向きモードかどうか
 
             // DOM要素のキャッシュ
             elements: {},
@@ -958,7 +1033,10 @@
                     
                     // モバイル
                     leftSidebar: document.getElementById('leftSidebar'),
-                    rightSidebar: document.getElementById('rightSidebar')
+                    rightSidebar: document.getElementById('rightSidebar'),
+                    
+                    // 縦横切り替え
+                    orientationToggle: document.getElementById('orientationToggle')
                 };
             },
 
@@ -1004,6 +1082,9 @@
                 document.querySelectorAll('.aspect-button').forEach(btn => {
                     btn.addEventListener('click', (e) => this.changeAspectRatio(e.currentTarget));
                 });
+                
+                // 縦横切り替えボタン
+                this.elements.orientationToggle.addEventListener('click', () => this.toggleOrientation());
 
                 // エクスポートボタン
                 this.elements.downloadBtn.addEventListener('click', () => this.downloadImage());
@@ -1476,6 +1557,41 @@
             },
 
 
+            // 縦横切り替え処理
+            toggleOrientation() {
+                this.isPortraitMode = !this.isPortraitMode;
+                this.updateOrientationButtonState();
+                
+                // 現在選択されているアスペクト比ボタンを取得
+                const activeButton = document.querySelector('.aspect-button.active');
+                if (activeButton && this.cropper) {
+                    this.applyCropperAspectRatio(activeButton);
+                }
+            },
+
+            // 縦横切り替えボタンの状態更新
+            updateOrientationButtonState() {
+                const toggleButton = this.elements.orientationToggle;
+                if (this.isPortraitMode) {
+                    toggleButton.classList.add('portrait');
+                    toggleButton.title = '横向きに切り替え';
+                } else {
+                    toggleButton.classList.remove('portrait');
+                    toggleButton.title = '縦向きに切り替え';
+                }
+            },
+
+            // 縦横モードを考慮したアスペクト比取得
+            getAdjustedAspectRatio(ratio) {
+                // 自由選択（NaN）や正方形（1）の場合はそのまま
+                if (isNaN(ratio) || ratio === 1) {
+                    return ratio;
+                }
+                
+                // 縦向きモードの場合は逆数を返す
+                return this.isPortraitMode ? 1 / ratio : ratio;
+            },
+
             // アスペクト比変更処理
             changeAspectRatio(selectedButton) {
                 if (!this.cropper) return;
@@ -1495,7 +1611,8 @@
             // Cropperのアスペクト比適用
             applyCropperAspectRatio(button) {
                 const aspectRatio = parseFloat(button.dataset.ratio);
-                this.cropper.setAspectRatio(aspectRatio);
+                const adjustedRatio = this.getAdjustedAspectRatio(aspectRatio);
+                this.cropper.setAspectRatio(adjustedRatio);
             },
 
             // 全選択（Ctrl+A）
